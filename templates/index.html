@@ -24,7 +24,6 @@
   <!-- MATCH ANALYSIS -->
   <section id="tab-match" class="tab-content active">
     <h2>Full Match Prediction</h2>
-    <p class="hint">Runs all 4 algorithms across both squads using ESPN season stats.</p>
     <form id="form-match">
       <div class="row">
         <div class="field">
@@ -137,25 +136,21 @@
 
         <div class="result-card">
           <h3>Foul Probability</h3>
-          <p class="card-note">Defender fouls committed rate × target touch involvement</p>
           ${buildFoulTable(data.foul)}
         </div>
 
         <div class="result-card">
           <h3>Shot Probability</h3>
-          <p class="card-note">Poisson model: shots/game × opposition defensive factor</p>
           ${buildShotTable(data.shot)}
         </div>
 
         <div class="result-card">
           <h3>Shot on Target Probability</h3>
-          <p class="card-note">Poisson model: shots on target per match average</p>
           ${buildSOTTable(data.sot)}
         </div>
 
         <div class="result-card">
           <h3>Fouled Probability</h3>
-          <p class="card-note">Player foul-drawing rate × opposition defenders foul rate</p>
           ${buildFouledTable(data.fouled)}
         </div>
 
@@ -268,7 +263,6 @@
         <div class="single-header">
           <div class="single-name">${d.player}</div>
           <div class="single-team">${d.team}${d.opp ? ' vs ' + d.opp : ''}</div>
-          <div class="single-mode">${modeLabels[d.mode]}</div>
         </div>
         ${probVal !== null ? `<div class="single-prob ${probColor(probVal)}">${probVal}%</div>` : ''}
         <table class="single-table">
