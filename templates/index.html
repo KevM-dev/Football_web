@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Football Probability Predictor</title>
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+
+<header>
+  <div class="logo">⚽ Football Predictor</div>
+  <div class="sub">Powered by ESPN API</div>
+</header>
+
+<main>
+
+  <!-- TABS -->
+  <div class="tabs">
+    <button class="tab active" onclick="switchTab('match')">Match Analysis</button>
+    <button class="tab" onclick="switchTab('single')">Single Player</button>
+  </div>
+
+  <!-- MATCH ANALYSIS -->
+  <section id="tab-match" class="tab-content active">
+    <h2>Full Match Prediction</h2>
+    <p class="hint">Runs all 4 algorithms across both squads using ESPN season stats.</p>
+    <form id="form-match">
+      <div class="row">
+        <div class="field">
+          <label>Home Team</label>
+          <input type="text" id="team1" placeholder="e.g. Real Madrid" required />
+        </div>
+        <div class="vs">vs</div>
+        <div class="field">
+          <label>Away Team</label>
+          <input type="text" id="team2" placeholder="e.g. Bayern Munich" required />
+        </div>
+      </div>
+      <button type="submit" class="btn">Predict</button>
+    </form>
+    <div id="match-results"></div>
+  </section>
+
+  <!-- SINGLE PLAYER -->
+  <section id="tab-single" class="tab-content">
+    <h2>Single Player Analysis</h2>
+    <form id="form-single">
+      <div class="row">
+        <div class="field">
+          <label>Player Name</label>
+          <input type="text" id="player" placeholder="e.g. Vinicius Jr" required />
+        </div>
+        <div class="field">
+          <label>Player's Team</label>
+          <input type="text" id="player-team" placeholder="e.g. Real Madrid" required />
+        </div>
+      </div>
+      <div class="row">
+        <div class="field">
+          <label>Analysis Type</label>
+          <select id="mode" onchange="toggleOpp()">
+            <option value="sot">Shot on Target Probability</option>
+            <option value="shot">Shot Probability</option>
+            <option value="fouled">Fouled Probability</option>
+            <option value="foul">Foul Committed Probability</option>
+          </select>
+        </div>
+        <div class="field" id="opp-field">
+          <label>Opposition Team</label>
+          <input type="text" id="opp-team" placeholder="e.g. Bayern Munich" />
+        </div>
+      </div>
+      <button type="submit" class="btn">Calculate</button>
+    </form>
+    <div id="single-results"></div>
+  </section>
+
+</main>
+
+<script>
+  // ── TABS ────────────────────────────────────
+  function switchTab(name) {
+    document.querySelectorAll('.tab-content').forEach(s => s.classList.remove('active'));
+    document.querySelectorAll('.tab').forEach(b => b.classList.remove('active'));
+    document.getElementById('tab-' + name).classList.add('active');
+    event.target.classList.add('active');
+  }
+
+  function toggleOpp() {
+    const mode = document.getElementById('mode').value;
+    const oppField = document.getElementById('opp-field');
+    oppField.style.display = (mode === 'shot' || mode === 'fouled') ? 'flex' : 'none';
+  }
+  toggleOpp();
+
+  // ── LOADING STATE ───────────────────────────
+  function setLoading(el, msg) {
+    el.innerHTML = `<div class="loading"><div class="spinner"></div>${msg}</div>`;
+  }
+
+  function probColor(p) {
+    if (p >= 70) return 'high';
+    if (p >= 40) return 'mid';
+    return 'low';
+  }
+
+  // ── MATCH FORM ──────────────────────────────
+  document.getElementById('form-match').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const out = document.getElementById('match-results');
+    setLoading(out, 'Fetching ESPN data for both squads...');
+
+    const res  = await fetch('/api/match', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        team1: document.getElementById('team1').value,
+        team2: document.getElementById('team2').value,
+      })
+    });
+    const data = await res.json();
+
+    if (data.error) {
+      out.innerHTML = `<div class="error">${data.error}</div>`;
+      return;
+    }
+
+    out.innerHTML = `
+      <div class="match-header">${data.team1} vs ${data.team2}</div>
+      <div class="stats-bar">
+        <span>${data.team1} shots conceded/match: <strong>${data.t1_conc}</strong></span>
+        <span>${data.team2} shots conceded/match: <strong>${data.t2_conc}</strong></span>
+      </div>
+
+      <div class="result-grid">
+
+        <div class="result-card">
+          <h3>Foul Probability</h3>
+          <p class="card-note">Defender fouls committed rate × target touch involvement</p>
+          ${buildFoulTable(data.foul)}
+        </div>
+
+        <div class="result-card">
+          <h3>Shot Probability</h3>
+          <p class="card-note">Poisson model: shots/game × opposition defensive factor</p>
+          ${buildShotTable(data.shot)}
+        </div>
+
+        <div class="result-card">
+          <h3>Shot on Target Probability</h3>
+          <p class="card-note">Poisson model: shots on target per match average</p>
+          ${buildSOTTable(data.sot)}
+        </div>
+
+        <div class="result-card">
+          <h3>Fouled Probability</h3>
+          <p class="card-note">Player foul-drawing rate × opposition defenders foul rate</p>
+          ${buildFouledTable(data.fouled)}
+        </div>
+
+      </div>
+    `;
+  });
+
+  // ── SINGLE PLAYER FORM ──────────────────────
+  document.getElementById('form-single').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const out = document.getElementById('single-results');
+    setLoading(out, 'Fetching player data from ESPN...');
+
+    const res  = await fetch('/api/single', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        mode:        document.getElementById('mode').value,
+        player:      document.getElementById('player').value,
+        player_team: document.getElementById('player-team').value,
+        opp_team:    document.getElementById('opp-team').value,
+      })
+    });
+    const data = await res.json();
+
+    if (data.error) {
+      out.innerHTML = `<div class="error">${data.error}</div>`;
+      return;
+    }
+
+    out.innerHTML = buildSingleResult(data);
+  });
+
+  // ── TABLE BUILDERS ───────────────────────────
+  function buildFoulTable(rows) {
+    if (!rows.length) return '<p class="no-data">No qualifying matchups found.</p>';
+    return `<table>
+      <thead><tr><th>Committer</th><th>Team</th><th>F/M</th><th>Target</th><th>T/90</th><th>Prob</th></tr></thead>
+      <tbody>${rows.map(r => `
+        <tr>
+          <td>${r.committer}</td>
+          <td class="team-tag">${r.committer_team}</td>
+          <td>${r.fpm}</td>
+          <td>${r.target}</td>
+          <td>${r.touches}</td>
+          <td><span class="badge ${probColor(r.prob)}">${r.prob}%</span></td>
+        </tr>`).join('')}
+      </tbody></table>`;
+  }
+
+  function buildShotTable(rows) {
+    if (!rows.length) return '<p class="no-data">No data available.</p>';
+    return `<table>
+      <thead><tr><th>Player</th><th>Team</th><th>Sh/G</th><th>Prob</th></tr></thead>
+      <tbody>${rows.map(r => `
+        <tr>
+          <td>${r.player}</td>
+          <td class="team-tag">${r.team}</td>
+          <td>${r.shots_pg}</td>
+          <td><span class="badge ${probColor(r.prob)}">${r.prob}%</span></td>
+        </tr>`).join('')}
+      </tbody></table>`;
+  }
+
+  function buildSOTTable(rows) {
+    if (!rows.length) return '<p class="no-data">No data available.</p>';
+    return `<table>
+      <thead><tr><th>Player</th><th>Team</th><th>SOT/G</th><th>Prob</th></tr></thead>
+      <tbody>${rows.map(r => `
+        <tr>
+          <td>${r.player}</td>
+          <td class="team-tag">${r.team}</td>
+          <td>${r.sot_pg}</td>
+          <td><span class="badge ${probColor(r.prob)}">${r.prob}%</span></td>
+        </tr>`).join('')}
+      </tbody></table>`;
+  }
+
+  function buildFouledTable(rows) {
+    if (!rows.length) return '<p class="no-data">No data available.</p>';
+    return `<table>
+      <thead><tr><th>Player</th><th>Team</th><th>Drawn/G</th><th>OppF/G</th><th>Prob</th></tr></thead>
+      <tbody>${rows.map(r => `
+        <tr>
+          <td>${r.player}</td>
+          <td class="team-tag">${r.team}</td>
+          <td>${r.drawn_pg}</td>
+          <td>${r.opp_fpm}</td>
+          <td><span class="badge ${probColor(r.prob)}">${r.prob}%</span></td>
+        </tr>`).join('')}
+      </tbody></table>`;
+  }
+
+  function buildSingleResult(d) {
+    const modeLabels = {
+      foul: 'Foul Probability', shot: 'Shot Probability',
+      sot: 'Shot on Target Probability', fouled: 'Fouled Probability'
+    };
+    let rows = [];
+    if (d.mode === 'sot')    rows = [['SOT/Match', d.sot_pg], ['Appearances', d.apps], ['Probability', d.prob + '%']];
+    if (d.mode === 'shot')   rows = [['Shots/Game', d.shots_pg], ['Opp Conc/Match', d.opp_conc], ['Appearances', d.apps], ['Probability', d.prob + '%']];
+    if (d.mode === 'fouled') rows = [['Drawn/Match', d.drawn_pg], ['Opp Foul Rate', d.opp_fpm], ['Appearances', d.apps], ['Probability', d.prob + '%']];
+    if (d.mode === 'foul')   rows = [['Fouls/Match', d.fpm], ['Rate', d.fpc + '%'], ['Appearances', d.apps]];
+
+    const probRow = rows.find(r => r[0] === 'Probability');
+    const probVal = probRow ? parseFloat(probRow[1]) : null;
+
+    return `
+      <div class="single-card">
+        <div class="single-header">
+          <div class="single-name">${d.player}</div>
+          <div class="single-team">${d.team}${d.opp ? ' vs ' + d.opp : ''}</div>
+          <div class="single-mode">${modeLabels[d.mode]}</div>
+        </div>
+        ${probVal !== null ? `<div class="single-prob ${probColor(probVal)}">${probVal}%</div>` : ''}
+        <table class="single-table">
+          ${rows.map(r => `<tr><td class="label">${r[0]}</td><td class="value">${r[1]}</td></tr>`).join('')}
+        </table>
+      </div>`;
+  }
+</script>
+</body>
+</html>
