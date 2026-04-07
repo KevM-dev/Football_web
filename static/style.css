@@ -217,6 +217,38 @@ tr:hover td { background: #1a2226; }
 .single-table .label { color: #7a9e82; width: 50%; }
 .single-table .value { color: #fff; font-weight: 600; }
 
+/* FOOTER */
+footer {
+  margin-top: 60px;
+  border-top: 1px solid #21292f;
+  padding: 24px 32px;
+  background: #0b0e14;
+}
+.footer-inner {
+  max-width: 1200px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  flex-wrap: wrap;
+}
+.footer-label {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #4a6e52;
+}
+.footer-link {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: #7a9e82;
+  text-decoration: none;
+  font-size: 0.9rem;
+  transition: color 0.2s;
+}
+.footer-link:hover { color: #5cb876; }
+
 /* RESPONSIVE */
 @media (max-width: 600px) {
   .result-grid { grid-template-columns: 1fr; }
