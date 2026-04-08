@@ -188,12 +188,12 @@
   function buildFoulTable(rows) {
     if (!rows.length) return '<p class="no-data">No qualifying matchups found.</p>';
     return `<table>
-      <thead><tr><th>Committer</th><th>Team</th><th>F/M</th><th>Target</th><th>T/90</th><th>Prob</th></tr></thead>
+      <thead><tr><th>Committer</th><th>Team</th><th>F/90</th><th>Target</th><th>T/90</th><th>Prob</th></tr></thead>
       <tbody>${rows.map(r => `
         <tr>
           <td>${r.committer}</td>
           <td class="team-tag">${r.committer_team}</td>
-          <td>${r.fpm}</td>
+          <td>${r.f90}</td>
           <td>${r.target}</td>
           <td>${r.touches}</td>
           <td><span class="badge ${probColor(r.prob)}">${r.prob}%</span></td>
@@ -253,7 +253,7 @@
     if (d.mode === 'sot')    rows = [['SOT/Match', d.sot_pg], ['Appearances', d.apps], ['Probability', d.prob + '%']];
     if (d.mode === 'shot')   rows = [['Shots/Game', d.shots_pg], ['Opp Conc/Match', d.opp_conc], ['Appearances', d.apps], ['Probability', d.prob + '%']];
     if (d.mode === 'fouled') rows = [['Drawn/Match', d.drawn_pg], ['Opp Foul Rate', d.opp_fpm], ['Appearances', d.apps], ['Probability', d.prob + '%']];
-    if (d.mode === 'foul')   rows = [['Fouls/Match', d.fpm], ['Rate', d.fpc + '%'], ['Appearances', d.apps]];
+    if (d.mode === 'foul')   rows = [['Fouls/90', d.f90], ['Total Fouls', d.fouls], ['Minutes Played', d.mins]];
 
     const probRow = rows.find(r => r[0] === 'Probability');
     const probVal = probRow ? parseFloat(probRow[1]) : null;

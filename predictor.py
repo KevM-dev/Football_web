@@ -5,8 +5,10 @@ BASE     = "https://site.api.espn.com/apis/site/v2/sports/soccer"
 HEADERS  = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
 LEAGUE_AVG_SHOTS  = 11.0
 LEAGUE_AVG_FOULS  = 1.5
+LEAGUE_AVG_TOUCHES = 55.0   # L: league avg touches/game across all outfield positions
 MIN_APPS          = 5
 POS_TOUCHES       = {"M": 70, "F": 63, "D": 55}
+DEFAULT_MATCH_MINS = 90.0   # E: expected minutes a starter plays
 
 KNOWN_TEAMS = {
     "real madrid":       ("86",    "esp.1"),
@@ -107,7 +109,7 @@ def get_roster(team_id, league):
 def enrich(player):
     stats = player.get("statistics")
     base = {
-        "_apps": 0, "_fouls": 0, "_fouls_drawn": 0,
+        "_apps": 0, "_mins": 0, "_fouls": 0, "_fouls_drawn": 0,
         "_shots": 0, "_sot": 0, "_gc": 0, "_sf": 0,
     }
     if not stats:
@@ -115,6 +117,10 @@ def enrich(player):
         return player
     cats = stats["splits"]["categories"]
     player["_apps"]        = get_stat(cats, "appearances")
+    player["_mins"]        = get_stat(cats, "minutesPlayed") or get_stat(cats, "minutes")
+    # fallback: estimate minutes from appearances if ESPN doesn't carry them
+    if player["_mins"] == 0 and player["_apps"] > 0:
+        player["_mins"]    = player["_apps"] * DEFAULT_MATCH_MINS
     player["_fouls"]       = get_stat(cats, "foulsCommitted")
     player["_fouls_drawn"] = get_stat(cats, "foulsSuffered")
     player["_shots"]       = get_stat(cats, "totalShots")
@@ -148,12 +154,21 @@ def shots_conceded(squad):
 
 # ── ALGORITHMS ───────────────────────────────
 
-def foul_prob(fouls, apps, target_pos):
-    if apps == 0: return 0.0
-    fpm      = fouls / apps
-    fpc      = min(fpm / 3.0, 1.0) * 100.0
-    touches  = POS_TOUCHES.get(target_pos, 63)
-    return round(fpc * (touches / 100.0), 2)
+def foul_prob(fouls, mins, target_pos, expected_mins=DEFAULT_MATCH_MINS):
+    """
+    Master Formula:
+    P(Foul >= 1) = [1 - e^(-(F/M x E x O/L))] x 100
+
+    F = total fouls committed this season
+    M = total minutes played this season
+    E = expected minutes in this match (default 90)
+    O = opponent avg touches per game (estimated by position)
+    L = league avg touches per game (across all outfield positions)
+    """
+    if mins == 0: return 0.0
+    O   = POS_TOUCHES.get(target_pos, 63)
+    lam = (fouls / mins) * expected_mins * (O / LEAGUE_AVG_TOUCHES)
+    return round((1 - math.exp(-lam)) * 100.0, 2)
 
 
 def shot_prob(total_shots, apps, opp_conc):
@@ -202,10 +217,11 @@ def run_match(team1_name, team2_name):
                 apos = a.get("position", {}).get("abbreviation", "")
                 if apos not in ("M", "F"): continue
                 if a["_apps"] < MIN_APPS: continue
-                prob = foul_prob(d["_fouls"], d["_apps"], apos)
+                prob = foul_prob(d["_fouls"], d["_mins"], apos)
+                f90 = round((d["_fouls"] / d["_mins"]) * 90, 2) if d["_mins"] else 0
                 foul_rows.append({
                     "committer": d["fullName"], "committer_team": def_team,
-                    "fpm": round(d["_fouls"] / d["_apps"], 2),
+                    "f90": f90,
                     "target": a["fullName"], "target_team": att_team,
                     "touches": POS_TOUCHES.get(apos, 63), "prob": prob,
                 })
@@ -293,9 +309,8 @@ def run_single(mode, player_name, player_team, opp_team=None):
 
     if mode == "foul":
         result["fouls"]    = int(player["_fouls"])
-        result["apps"]     = int(player["_apps"])
-        result["fpm"]      = round(player["_fouls"] / player["_apps"], 2) if player["_apps"] else 0
-        result["fpc"]      = round(min(result["fpm"] / 3.0, 1.0) * 100, 1)
+        result["mins"]     = int(player["_mins"])
+        result["f90"]      = round((player["_fouls"] / player["_mins"]) * 90, 2) if player["_mins"] else 0
 
     elif mode == "shot":
         opp_conc = shots_conceded(squad_o)
