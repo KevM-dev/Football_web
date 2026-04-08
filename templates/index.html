@@ -188,14 +188,14 @@
   function buildFoulTable(rows) {
     if (!rows.length) return '<p class="no-data">No qualifying matchups found.</p>';
     return `<table>
-      <thead><tr><th>Committer</th><th>Team</th><th>F/90</th><th>Target</th><th>T/90</th><th>Prob</th></tr></thead>
+      <thead><tr><th>Committer</th><th>Team</th><th>F/90</th><th>Target</th><th>FS/90</th><th>Prob</th></tr></thead>
       <tbody>${rows.map(r => `
         <tr>
           <td>${r.committer}</td>
           <td class="team-tag">${r.committer_team}</td>
           <td>${r.f90}</td>
           <td>${r.target}</td>
-          <td>${r.touches}</td>
+          <td>${r.fs90}</td>
           <td><span class="badge ${probColor(r.prob)}">${r.prob}%</span></td>
         </tr>`).join('')}
       </tbody></table>`;

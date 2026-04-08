@@ -3,12 +3,11 @@ import math
 
 BASE     = "https://site.api.espn.com/apis/site/v2/sports/soccer"
 HEADERS  = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
-LEAGUE_AVG_SHOTS  = 11.0
-LEAGUE_AVG_FOULS  = 1.5
-LEAGUE_AVG_TOUCHES = 55.0   # L: league avg touches/game across all outfield positions
-MIN_APPS          = 5
-POS_TOUCHES       = {"M": 70, "F": 63, "D": 55}
-DEFAULT_MATCH_MINS = 90.0   # E: expected minutes a starter plays
+LEAGUE_AVG_SHOTS     = 11.0
+LEAGUE_AVG_FOULS     = 1.5
+LEAGUE_AVG_FS_PER90  = 1.5  # L: league avg fouls suffered per 90 for outfield players
+MIN_APPS             = 5
+DEFAULT_MATCH_MINS   = 90.0  # E: expected minutes a starter plays
 
 KNOWN_TEAMS = {
     "real madrid":       ("86",    "esp.1"),
@@ -154,7 +153,7 @@ def shots_conceded(squad):
 
 # ── ALGORITHMS ───────────────────────────────
 
-def foul_prob(fouls, mins, target_pos, expected_mins=DEFAULT_MATCH_MINS):
+def foul_prob(fouls, mins, target_fs_per90, expected_mins=DEFAULT_MATCH_MINS):
     """
     Master Formula:
     P(Foul >= 1) = [1 - e^(-(F/M x E x O/L))] x 100
@@ -162,12 +161,11 @@ def foul_prob(fouls, mins, target_pos, expected_mins=DEFAULT_MATCH_MINS):
     F = total fouls committed this season
     M = total minutes played this season
     E = expected minutes in this match (default 90)
-    O = opponent avg touches per game (estimated by position)
-    L = league avg touches per game (across all outfield positions)
+    O = target player's fouls suffered per 90 (real ESPN data)
+    L = league avg fouls suffered per 90 (~1.5)
     """
     if mins == 0: return 0.0
-    O   = POS_TOUCHES.get(target_pos, 63)
-    lam = (fouls / mins) * expected_mins * (O / LEAGUE_AVG_TOUCHES)
+    lam = (fouls / mins) * expected_mins * (target_fs_per90 / LEAGUE_AVG_FS_PER90)
     return round((1 - math.exp(-lam)) * 100.0, 2)
 
 
@@ -217,13 +215,18 @@ def run_match(team1_name, team2_name):
                 apos = a.get("position", {}).get("abbreviation", "")
                 if apos not in ("M", "F"): continue
                 if a["_apps"] < MIN_APPS: continue
-                prob = foul_prob(d["_fouls"], d["_mins"], apos)
-                f90 = round((d["_fouls"] / d["_mins"]) * 90, 2) if d["_mins"] else 0
+                # O: target fouls suffered per 90 (real data); fallback to league avg
+                a_fs90 = round((a["_fouls_drawn"] / a["_mins"]) * 90, 2) if a["_mins"] else LEAGUE_AVG_FS_PER90
+                prob   = foul_prob(d["_fouls"], d["_mins"], a_fs90)
+                f90    = round((d["_fouls"] / d["_mins"]) * 90, 2) if d["_mins"] else 0
                 foul_rows.append({
-                    "committer": d["fullName"], "committer_team": def_team,
-                    "f90": f90,
-                    "target": a["fullName"], "target_team": att_team,
-                    "touches": POS_TOUCHES.get(apos, 63), "prob": prob,
+                    "committer":      d["fullName"],
+                    "committer_team": def_team,
+                    "f90":            f90,
+                    "target":         a["fullName"],
+                    "target_team":    att_team,
+                    "fs90":           a_fs90,
+                    "prob":           prob,
                 })
 
     def calc_shots(players, team, opp_conc):
@@ -308,9 +311,10 @@ def run_single(mode, player_name, player_team, opp_team=None):
         result["opp"] = team_o["name"]
 
     if mode == "foul":
-        result["fouls"]    = int(player["_fouls"])
-        result["mins"]     = int(player["_mins"])
-        result["f90"]      = round((player["_fouls"] / player["_mins"]) * 90, 2) if player["_mins"] else 0
+        result["fouls"] = int(player["_fouls"])
+        result["mins"]  = int(player["_mins"])
+        result["f90"]   = round((player["_fouls"] / player["_mins"]) * 90, 2) if player["_mins"] else 0
+        # note: foul mode shows committer stats only — prob requires a target player
 
     elif mode == "shot":
         opp_conc = shots_conceded(squad_o)
