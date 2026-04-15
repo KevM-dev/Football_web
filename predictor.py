@@ -1,7 +1,9 @@
 import requests
 import math
+from datetime import datetime, timezone
 
 BASE     = "https://site.api.espn.com/apis/site/v2/sports/soccer"
+UCL_BASE = "https://site.api.espn.com/apis/site/v2/sports/soccer/UEFA.CHAMPIONS"
 HEADERS  = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
 LEAGUE_AVG_SHOTS     = 11.0
 LEAGUE_AVG_FOULS     = 1.5
@@ -286,6 +288,75 @@ def run_match(team1_name, team2_name):
 
 
 # ── SINGLE PLAYER ────────────────────────────
+
+def get_ucl_fixtures(espn_date):
+    """
+    Fetch Champions League fixtures for a given date.
+    espn_date: string in YYYYMMDD format
+    """
+    url  = f"{UCL_BASE}/scoreboard?dates={espn_date}"
+    data = api_get(url)
+    events = data.get("events", [])
+
+    if not events:
+        return {"fixtures": [], "date": espn_date}
+
+    fixtures = []
+    for event in events:
+        competition = event.get("competitions", [{}])[0]
+        competitors = competition.get("competitors", [])
+
+        home = next((c for c in competitors if c.get("homeAway") == "home"), None)
+        away = next((c for c in competitors if c.get("homeAway") == "away"), None)
+        if not home or not away:
+            continue
+
+        status_obj   = event.get("status", {})
+        status_type  = status_obj.get("type", {})
+        status_name  = status_type.get("name", "")
+        status_short = status_type.get("shortDetail", "")
+        is_completed = status_type.get("completed", False)
+
+        if "IN_PROGRESS" in status_name or "HALFTIME" in status_name:
+            status_label = "LIVE"
+        elif is_completed:
+            status_label = "FT"
+        else:
+            status_label = "Scheduled"
+
+        # Parse kick-off time to readable local string
+        raw_date = event.get("date", "")
+        try:
+            dt = datetime.fromisoformat(raw_date.replace("Z", "+00:00"))
+            kickoff = dt.strftime("%H:%M UTC")
+        except Exception:
+            kickoff = raw_date
+
+        # Round / stage note
+        notes = competition.get("notes", [])
+        round_text = notes[0].get("headline", notes[0].get("text", "")) if notes else ""
+
+        # Venue
+        venue_obj = competition.get("venue", {})
+        venue = venue_obj.get("fullName", "")
+
+        home_score = home.get("score", "")
+        away_score = away.get("score", "")
+
+        fixtures.append({
+            "home":         home["team"].get("displayName", ""),
+            "away":         away["team"].get("displayName", ""),
+            "home_score":   home_score,
+            "away_score":   away_score,
+            "status":       status_label,
+            "status_short": status_short,
+            "kickoff":      kickoff,
+            "round":        round_text,
+            "venue":        venue,
+        })
+
+    return {"fixtures": fixtures, "date": espn_date}
+
 
 def run_single(mode, player_name, player_team, opp_team=None):
     team_p = find_team(player_team)

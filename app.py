@@ -1,4 +1,5 @@
 from flask import Flask, render_template, request, jsonify
+import re
 import predictor
 
 app = Flask(__name__)
@@ -30,6 +31,16 @@ def api_single():
     if not player_name or not player_team:
         return jsonify({"error": "Player name and team are required."}), 400
     result = predictor.run_single(mode, player_name, player_team, opp_team)
+    return jsonify(result)
+
+
+@app.route("/api/ucl", methods=["GET"])
+def api_ucl():
+    date_str = request.args.get("date", "").strip()
+    if not date_str or not re.match(r'^\d{4}-\d{2}-\d{2}$', date_str):
+        return jsonify({"error": "A valid date (YYYY-MM-DD) is required."}), 400
+    espn_date = date_str.replace("-", "")
+    result = predictor.get_ucl_fixtures(espn_date)
     return jsonify(result)
 
 

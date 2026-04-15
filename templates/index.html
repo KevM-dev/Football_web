@@ -19,6 +19,7 @@
   <div class="tabs">
     <button class="tab active" onclick="switchTab('match')">Match Analysis</button>
     <button class="tab" onclick="switchTab('single')">Single Player</button>
+    <button class="tab" onclick="switchTab('ucl')">UCL Schedule</button>
   </div>
 
   <!-- MATCH ANALYSIS -->
@@ -73,6 +74,27 @@
       <button type="submit" class="btn">Calculate</button>
     </form>
     <div id="single-results"></div>
+  </section>
+
+  <!-- UCL SCHEDULE -->
+  <section id="tab-ucl" class="tab-content">
+    <h2>Champions League Schedule</h2>
+    <p class="hint">Select a date to see which UCL fixtures are on.</p>
+    <form id="form-ucl">
+      <div class="row">
+        <div class="field" style="max-width:220px">
+          <label>Date</label>
+          <input type="date" id="ucl-date" required />
+        </div>
+        <div class="ucl-shortcuts">
+          <button type="button" class="btn-secondary" onclick="setUCLDate(0)">Today</button>
+          <button type="button" class="btn-secondary" onclick="setUCLDate(1)">Tomorrow</button>
+          <button type="button" class="btn-secondary" onclick="setUCLDate(-1)">Yesterday</button>
+        </div>
+      </div>
+      <button type="submit" class="btn">Show Fixtures</button>
+    </form>
+    <div id="ucl-results"></div>
   </section>
 
 </main>
@@ -243,6 +265,60 @@
         </tr>`).join('')}
       </tbody></table>`;
   }
+
+  // ── UCL SCHEDULE ────────────────────────────
+  function setUCLDate(offsetDays) {
+    const d = new Date();
+    d.setDate(d.getDate() + offsetDays);
+    document.getElementById('ucl-date').value = d.toISOString().slice(0, 10);
+  }
+  // Default to today
+  setUCLDate(0);
+
+  document.getElementById('form-ucl').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const out  = document.getElementById('ucl-results');
+    const date = document.getElementById('ucl-date').value;
+    setLoading(out, 'Fetching Champions League fixtures...');
+
+    const res  = await fetch(`/api/ucl?date=${date}`);
+    const data = await res.json();
+
+    if (data.error) {
+      out.innerHTML = `<div class="error">${data.error}</div>`;
+      return;
+    }
+
+    if (!data.fixtures || data.fixtures.length === 0) {
+      out.innerHTML = `<div class="no-ucl">No Champions League fixtures found for this date.</div>`;
+      return;
+    }
+
+    const [y, m, d2] = date.split('-');
+    const display = `${d2}/${m}/${y}`;
+    let html = `<div class="ucl-date-header">Fixtures — ${display}</div><div class="ucl-list">`;
+
+    data.fixtures.forEach(f => {
+      const statusClass = f.status === 'LIVE' ? 'live' : f.status === 'FT' ? 'ft' : 'scheduled';
+      const scoreBlock  = (f.status === 'FT' || f.status === 'LIVE')
+        ? `<span class="ucl-score">${f.home_score} – ${f.away_score}</span>`
+        : `<span class="ucl-kickoff">${f.kickoff}</span>`;
+
+      html += `
+        <div class="ucl-fixture">
+          <div class="ucl-fixture-top">
+            <span class="ucl-team home">${f.home}</span>
+            ${scoreBlock}
+            <span class="ucl-team away">${f.away}</span>
+            <span class="ucl-status ${statusClass}">${f.status === 'LIVE' ? f.status_short || 'LIVE' : f.status}</span>
+          </div>
+          ${f.round || f.venue ? `<div class="ucl-fixture-meta">${[f.round, f.venue].filter(Boolean).join(' · ')}</div>` : ''}
+        </div>`;
+    });
+
+    html += `</div>`;
+    out.innerHTML = html;
+  });
 
   function buildSingleResult(d) {
     const modeLabels = {

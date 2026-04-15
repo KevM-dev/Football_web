@@ -219,6 +219,104 @@ tr:hover td { background: #1a2226; }
 .single-table .label { color: #7a9e82; width: 50%; }
 .single-table .value { color: #fff; font-weight: 600; }
 
+/* UCL SCHEDULE */
+.ucl-shortcuts {
+  display: flex;
+  gap: 8px;
+  align-items: flex-end;
+  flex-wrap: wrap;
+}
+.btn-secondary {
+  background: transparent;
+  color: #9dc9a8;
+  border: 1px solid #2d7a44;
+  padding: 10px 16px;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.btn-secondary:hover { background: #1a2e1c; color: #fff; }
+
+.ucl-date-header {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #fff;
+  margin-bottom: 16px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid #21292f;
+}
+
+.ucl-list { display: flex; flex-direction: column; gap: 12px; }
+
+.ucl-fixture {
+  background: #161b22;
+  border: 1px solid #21292f;
+  border-radius: 10px;
+  padding: 16px 20px;
+  transition: border-color 0.2s;
+}
+.ucl-fixture:hover { border-color: #2d7a44; }
+
+.ucl-fixture-top {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.ucl-team {
+  flex: 1;
+  font-size: 1rem;
+  font-weight: 600;
+  color: #fff;
+  min-width: 140px;
+}
+.ucl-team.away { text-align: right; }
+
+.ucl-score {
+  font-size: 1.3rem;
+  font-weight: 800;
+  color: #5cb876;
+  min-width: 70px;
+  text-align: center;
+  letter-spacing: 0.05em;
+}
+.ucl-kickoff {
+  font-size: 0.9rem;
+  color: #7a9e82;
+  min-width: 70px;
+  text-align: center;
+}
+.ucl-status {
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 3px 10px;
+  border-radius: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  white-space: nowrap;
+}
+.ucl-status.scheduled { background: #1a2533; color: #7a9e82; border: 1px solid #2d3748; }
+.ucl-status.ft        { background: #1a2e1c; color: #5cb876; border: 1px solid #2d7a44; }
+.ucl-status.live      { background: #3d1a00; color: #e07020; border: 1px solid #7a4000; animation: pulse 1.4s ease-in-out infinite; }
+@keyframes pulse { 0%,100% { opacity:1 } 50% { opacity:0.55 } }
+
+.ucl-fixture-meta {
+  margin-top: 8px;
+  font-size: 0.78rem;
+  color: #4a6e52;
+}
+
+.no-ucl {
+  padding: 28px;
+  text-align: center;
+  color: #4a6e52;
+  font-size: 0.95rem;
+  background: #161b22;
+  border: 1px solid #21292f;
+  border-radius: 10px;
+}
+
 /* FOOTER */
 footer {
   margin-top: auto;
