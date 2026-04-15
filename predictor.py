@@ -54,9 +54,15 @@ KNOWN_TEAMS = {
     "marseille":         ("176",   "fra.1"),
     "lyon":              ("167",   "fra.1"),
     "monaco":            ("174",   "fra.1"),
+    "sporting cp":       ("2250",  "por.1"),
+    "sporting":          ("2250",  "por.1"),
+    "benfica":           ("1929",  "por.1"),
+    "fc porto":          ("437",   "por.1"),
+    "porto":             ("437",   "por.1"),
+    "braga":             ("2994",  "por.1"),
 }
 
-ALL_LEAGUES = ["esp.1", "ger.1", "eng.1", "ita.1", "fra.1"]
+ALL_LEAGUES = ["esp.1", "ger.1", "eng.1", "ita.1", "fra.1", "por.1"]
 
 
 # ── API ──────────────────────────────────────
