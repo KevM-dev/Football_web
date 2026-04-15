@@ -257,6 +257,17 @@ tr:hover td { background: #1a2226; }
   transition: border-color 0.2s;
 }
 .ucl-fixture:hover { border-color: #2d7a44; }
+.ucl-clickable { cursor: pointer; }
+.ucl-clickable:hover { border-color: #5cb876; background: #1a2226; }
+.ucl-analyse-hint {
+  font-size: 0.75rem;
+  color: #2d7a44;
+  opacity: 0;
+  transition: opacity 0.2s;
+  white-space: nowrap;
+  font-weight: 600;
+}
+.ucl-clickable:hover .ucl-analyse-hint { opacity: 1; }
 
 .ucl-fixture-top {
   display: flex;

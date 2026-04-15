@@ -101,11 +101,23 @@
 
 <script>
   // ── TABS ────────────────────────────────────
-  function switchTab(name) {
+  function switchTab(name, btnEl) {
     document.querySelectorAll('.tab-content').forEach(s => s.classList.remove('active'));
     document.querySelectorAll('.tab').forEach(b => b.classList.remove('active'));
     document.getElementById('tab-' + name).classList.add('active');
-    event.target.classList.add('active');
+    const btn = btnEl || event.target;
+    if (btn) btn.classList.add('active');
+  }
+
+  function switchTabByName(name) {
+    document.querySelectorAll('.tab-content').forEach(s => s.classList.remove('active'));
+    document.querySelectorAll('.tab').forEach(b => b.classList.remove('active'));
+    document.getElementById('tab-' + name).classList.add('active');
+    document.querySelectorAll('.tab').forEach(b => {
+      if (b.getAttribute('onclick') && b.getAttribute('onclick').includes("'" + name + "'")) {
+        b.classList.add('active');
+      }
+    });
   }
 
   function toggleOpp() {
@@ -275,6 +287,14 @@
   // Default to today
   setUCLDate(0);
 
+  function analyseFixture(home, away) {
+    document.getElementById('team1').value = home;
+    document.getElementById('team2').value = away;
+    switchTabByName('match');
+    document.getElementById('form-match').dispatchEvent(new Event('submit'));
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
   document.getElementById('form-ucl').addEventListener('submit', async (e) => {
     e.preventDefault();
     const out  = document.getElementById('ucl-results');
@@ -304,13 +324,16 @@
         ? `<span class="ucl-score">${f.home_score} – ${f.away_score}</span>`
         : `<span class="ucl-kickoff">${f.kickoff}</span>`;
 
+      const homeEsc = f.home.replace(/'/g, "\\'");
+      const awayEsc = f.away.replace(/'/g, "\\'");
       html += `
-        <div class="ucl-fixture">
+        <div class="ucl-fixture ucl-clickable" onclick="analyseFixture('${homeEsc}', '${awayEsc}')" title="Click to run match analysis">
           <div class="ucl-fixture-top">
             <span class="ucl-team home">${f.home}</span>
             ${scoreBlock}
             <span class="ucl-team away">${f.away}</span>
             <span class="ucl-status ${statusClass}">${f.status === 'LIVE' ? f.status_short || 'LIVE' : f.status}</span>
+            <span class="ucl-analyse-hint">Analyse →</span>
           </div>
           ${f.round || f.venue ? `<div class="ucl-fixture-meta">${[f.round, f.venue].filter(Boolean).join(' · ')}</div>` : ''}
         </div>`;
